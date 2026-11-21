@@ -35,6 +35,7 @@ info:
 
   license:
     name: MIT
+    url: https://opensource.org/license/mit/
 
 servers:
   - url: https://api-etudiants.example.com
@@ -498,43 +499,41 @@ components:
 
     ValidationError:
       description: |
-        Les données envoyées ne respectent pas les règles de validation.
-        Le tableau errors précise les champs concernés.
+        La requête est invalide. Cela peut être dû à des données qui ne
+        respectent pas les règles de validation ou à un corps JSON mal formé.
+        Le code métier permet de distinguer les deux situations.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            type: https://api.example.com/errors/validation
-            title: Erreur de validation
-            status: 400
-            code: VALIDATION_ERROR
-            detail: Certaines données fournies sont invalides.
-            instance: /api/etudiants
-            timestamp: "2026-11-21T14:30:00Z"
-            errors:
-              - field: email
-                rejectedValue: adresse-invalide
-                message: Le format de l'adresse email est invalide.
-              - field: nom
-                rejectedValue: A
-                message: Le nom doit contenir au moins 2 caractères.
-
-
-    InvalidRequest:
-      description: La requête est mal formée ou contient un JSON invalide.
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            type: https://api.example.com/errors/invalid-request
-            title: Requête invalide
-            status: 400
-            code: INVALID_REQUEST
-            detail: Le corps de la requête contient un JSON invalide.
-            instance: /api/etudiants
-            timestamp: "2026-11-21T14:30:00Z"
+          examples:
+            validationError:
+              summary: Données ne respectant pas les règles de validation
+              value:
+                type: https://api.example.com/errors/validation
+                title: Erreur de validation
+                status: 400
+                code: VALIDATION_ERROR
+                detail: Certaines données fournies sont invalides.
+                instance: /api/etudiants
+                timestamp: "2026-11-21T14:30:00Z"
+                errors:
+                  - field: email
+                    rejectedValue: adresse-invalide
+                    message: Le format de l'adresse email est invalide.
+                  - field: nom
+                    rejectedValue: A
+                    message: Le nom doit contenir au moins 2 caractères.
+            invalidRequest:
+              summary: Corps de requête JSON mal formé
+              value:
+                type: https://api.example.com/errors/invalid-request
+                title: Requête invalide
+                status: 400
+                code: INVALID_REQUEST
+                detail: Le corps de la requête contient un JSON invalide.
+                instance: /api/etudiants
+                timestamp: "2026-11-21T14:30:00Z"
 
 
     NotFound:
