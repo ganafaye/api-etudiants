@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+
+    <title>API Gestion des Étudiants - Documentation</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Swagger UI CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"
+    >
+
+    <style>
+        body {
+            margin: 0;
+            background-color: #fafafa;
+        }
+
+        .swagger-ui .topbar {
+            background-color: #1f2937;
+        }
+
+        .swagger-ui .topbar-wrapper .link {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Zone d'affichage de Swagger UI -->
+    <div id="swagger-ui"></div>
+
+    <!-- Swagger UI JavaScript -->
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+
+    <script>
+        window.onload = function () {
+
+            SwaggerUIBundle({
+
+                // Emplacement de notre contrat OpenAPI
+                url: "./openapi.yaml",
+
+                // Élément HTML dans lequel afficher Swagger UI
+                dom_id: "#swagger-ui",
+
+                // Afficher les méthodes HTTP par ordre alphabétique
+                operationsSorter: "alpha",
+
+                // Afficher les modèles en bas de page
+                defaultModelsExpandDepth: 2,
+
+                // Activer la fonctionnalité Try it out
+                tryItOutEnabled: true
+
+            });
+
+        };
+    </script>
+
+</body>
+</html>
