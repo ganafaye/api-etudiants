@@ -1,0 +1,31 @@
+name: API Students CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-workflow:
+    name: Vérification du workflow
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Afficher un message
+        run: echo "GitHub Actions fonctionne correctement !"
+
+      - name: Vérifier la présence du contrat OpenAPI
+        run: |
+          if [ -f openapi.yaml ]; then
+            echo "Contrat OpenAPI trouvé."
+          else
+            echo "ERREUR : openapi.yaml introuvable."
+            exit 1
+          fi
