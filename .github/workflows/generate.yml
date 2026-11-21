@@ -11,17 +11,19 @@ on:
 
 jobs:
   test-workflow:
-    name: Vérification du workflow
+    name: Vérification du contrat OpenAPI
     runs-on: ubuntu-latest
 
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
 
-      - name: Afficher un message
-        run: echo "GitHub Actions fonctionne correctement !"
+      - name: Configurer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Vérifier la présence du contrat OpenAPI
+      - name: Vérifier la présence du contrat
         run: |
           if [ -f openapi.yaml ]; then
             echo "Contrat OpenAPI trouvé."
@@ -29,3 +31,6 @@ jobs:
             echo "ERREUR : openapi.yaml introuvable."
             exit 1
           fi
+
+      - name: Valider le contrat OpenAPI
+        run: npx --yes @redocly/cli lint openapi.yaml
