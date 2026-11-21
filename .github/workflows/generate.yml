@@ -11,7 +11,7 @@ on:
 
 jobs:
   generate-code:
-    name: Validation, génération et publication du package
+    name: Validation, génération et publication des packages
     runs-on: ubuntu-latest
 
     # Permissions nécessaires à GitHub Packages
@@ -46,7 +46,7 @@ jobs:
       - name: Valider le contrat OpenAPI
         run: npx --yes @redocly/cli lint openapi.yaml
 
-      # 5. Générer le package npm TypeScript
+      # 5. Générer le client TypeScript
       - name: Générer le client TypeScript
         run: |
           docker run --rm \
@@ -55,14 +55,14 @@ jobs:
             -i /local/openapi.yaml \
             -g typescript-fetch \
             -o /local/generated/typescript-client \
-            --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.0
+            --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.1
 
       # 6. Corriger les permissions des fichiers générés
-      - name: Corriger les permissions
+      - name: Corriger les permissions TypeScript
         run: |
           sudo chown -R "$USER:$USER" generated/typescript-client
 
-      # 7. Personnaliser les métadonnées du package
+      # 7. Personnaliser les métadonnées npm
       - name: Configurer les métadonnées npm
         working-directory: generated/typescript-client
         run: |
@@ -87,7 +87,44 @@ jobs:
             -g spring \
             -o /local/generated/java-server
 
-      # 10. Conserver les artefacts générés
+      # 10. Corriger les permissions des fichiers Java générés
+      - name: Corriger les permissions Java
+        run: |
+          sudo chown -R "$USER:$USER" generated/java-server
+
+      # 11. Configurer Java et Maven
+      - name: Configurer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+          settings-path: ${{ github.workspace }}
+
+      # 12. Personnaliser les coordonnées Maven
+      - name: Personnaliser le package Maven
+        working-directory: generated/java-server
+        run: |
+          mvn -B versions:set \
+            -DgroupId=com.ganafaye \
+            -DartifactId=api-etudiants-server \
+            -Dversion=1.0.0 \
+            -DgenerateBackupPoms=false
+
+      # 13. Construire et publier le package Maven
+      - name: Construire et publier le package Maven
+        if: github.event_name != 'pull_request'
+        working-directory: generated/java-server
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B deploy \
+            -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/ganafaye/api-etudiants
+
+      # 14. Conserver les artefacts générés
       - name: Conserver les artefacts générés
         uses: actions/upload-artifact@v4
         with:
@@ -96,10 +133,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # 11. Publier le package npm sur GitHub Packages
+      # 15. Publier le package npm sur GitHub Packages
       - name: Publier le package npm
         if: github.event_name != 'pull_request'
         working-directory: generated/typescript-client
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --registry=https://npm.pkg.github.com
+        run: |
+          npm publish --registry=https://npm.pkg.github.com
