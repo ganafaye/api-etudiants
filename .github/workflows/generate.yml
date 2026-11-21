@@ -11,7 +11,7 @@ on:
 
 jobs:
   generate-code:
-    name: Validation, génération et préparation du package
+    name: Validation, génération et publication du package
     runs-on: ubuntu-latest
 
     # Permissions nécessaires à GitHub Packages
@@ -70,11 +70,9 @@ jobs:
           npm pkg set "author=Gana Faye"
           npm pkg set "repository.url=https://github.com/ganafaye/api-etudiants.git"
 
-      # 8. Installer les dépendances et compiler le package
+      # 8. Installer les dépendances et compiler le package npm
       - name: Installer et compiler le package npm
         working-directory: generated/typescript-client
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm install --ignore-scripts
           npm run build
@@ -97,3 +95,11 @@ jobs:
           path: generated/
           if-no-files-found: error
           retention-days: 7
+
+      # 11. Publier le package npm sur GitHub Packages
+      - name: Publier le package npm
+        if: github.event_name != 'pull_request'
+        working-directory: generated/typescript-client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --registry=https://npm.pkg.github.com
