@@ -134,8 +134,26 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B deploy \
-            -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/ganafaye/api-etudiants
+          # Vérifier la présence du fichier settings.xml
+          if [ ! -f "${{ github.workspace }}/settings.xml" ]; then
+            echo "ERREUR : fichier settings.xml introuvable."
+            exit 1
+          fi
+
+          # Vérifier la disponibilité du token
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "ERREUR : GITHUB_TOKEN est absent."
+            exit 1
+          fi
+
+          echo "Configuration Maven trouvée."
+          echo "Authentification GitHub disponible."
+
+          # Construire et publier le package Maven
+          mvn -B \
+            -s "${{ github.workspace }}/settings.xml" \
+            deploy \
+            -DaltDeploymentRepository=github::https://maven.pkg.github.com/ganafaye/api-etudiants
 
       # 14. Conserver les artefacts générés
       - name: Conserver les artefacts générés
