@@ -11,19 +11,26 @@ on:
 
 jobs:
   generate-code:
-    name: Validation et génération du code
+    name: Validation, génération et préparation du package
     runs-on: ubuntu-latest
+
+    # Permissions nécessaires à GitHub Packages
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       # 1. Récupérer le dépôt
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
 
-      # 2. Configurer Node.js
+      # 2. Configurer Node.js et GitHub Packages
       - name: Configurer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@ganafaye'
 
       # 3. Vérifier la présence du contrat
       - name: Vérifier la présence du contrat
@@ -50,7 +57,24 @@ jobs:
             -o /local/generated/typescript-client \
             --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.0
 
-      # 6. Générer le serveur Java Spring Boot
+      # 6. Personnaliser les métadonnées du package
+      - name: Configurer les métadonnées npm
+        working-directory: generated/typescript-client
+        run: |
+          npm pkg set "description=Client TypeScript généré automatiquement pour l'API de gestion des étudiants"
+          npm pkg set "author=Gana Faye"
+          npm pkg set "repository.url=https://github.com/ganafaye/api-etudiants.git"
+
+      # 7. Installer les dépendances et compiler le package
+      - name: Installer et compiler le package npm
+        working-directory: generated/typescript-client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm install --ignore-scripts
+          npm run build
+
+      # 8. Générer le serveur Java Spring Boot
       - name: Générer le serveur Java
         run: |
           docker run --rm \
@@ -60,7 +84,7 @@ jobs:
             -g spring \
             -o /local/generated/java-server
 
-      # 7. Conserver les fichiers générés
+      # 9. Conserver les artefacts générés
       - name: Conserver les artefacts générés
         uses: actions/upload-artifact@v4
         with:
