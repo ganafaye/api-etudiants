@@ -57,7 +57,12 @@ jobs:
             -o /local/generated/typescript-client \
             --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.0
 
-      # 6. Personnaliser les métadonnées du package
+      # 6. Corriger les permissions des fichiers générés
+      - name: Corriger les permissions
+        run: |
+          sudo chown -R "$USER:$USER" generated/typescript-client
+
+      # 7. Personnaliser les métadonnées du package
       - name: Configurer les métadonnées npm
         working-directory: generated/typescript-client
         run: |
@@ -65,7 +70,7 @@ jobs:
           npm pkg set "author=Gana Faye"
           npm pkg set "repository.url=https://github.com/ganafaye/api-etudiants.git"
 
-      # 7. Installer les dépendances et compiler le package
+      # 8. Installer les dépendances et compiler le package
       - name: Installer et compiler le package npm
         working-directory: generated/typescript-client
         env:
@@ -74,7 +79,7 @@ jobs:
           npm install --ignore-scripts
           npm run build
 
-      # 8. Générer le serveur Java Spring Boot
+      # 9. Générer le serveur Java Spring Boot
       - name: Générer le serveur Java
         run: |
           docker run --rm \
@@ -84,7 +89,7 @@ jobs:
             -g spring \
             -o /local/generated/java-server
 
-      # 9. Conserver les artefacts générés
+      # 10. Conserver les artefacts générés
       - name: Conserver les artefacts générés
         uses: actions/upload-artifact@v4
         with:
