@@ -39,7 +39,7 @@ jobs:
       - name: Valider le contrat OpenAPI
         run: npx --yes @redocly/cli lint openapi.yaml
 
-      # 5. Générer le client TypeScript
+      # 5. Générer le package npm TypeScript
       - name: Générer le client TypeScript
         run: |
           docker run --rm \
@@ -47,7 +47,8 @@ jobs:
             openapitools/openapi-generator-cli generate \
             -i /local/openapi.yaml \
             -g typescript-fetch \
-            -o /local/generated/typescript-client
+            -o /local/generated/typescript-client \
+            --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.0
 
       # 6. Générer le serveur Java Spring Boot
       - name: Générer le serveur Java
