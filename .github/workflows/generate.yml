@@ -58,3 +58,12 @@ jobs:
             -i /local/openapi.yaml \
             -g spring \
             -o /local/generated/java-server
+
+      # 7. Conserver les fichiers générés
+      - name: Conserver les artefacts générés
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-code
+          path: generated/
+          if-no-files-found: error
+          retention-days: 7
