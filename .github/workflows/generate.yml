@@ -112,15 +112,19 @@ jobs:
             -DnewVersion=1.0.0 \
             -DgenerateBackupPoms=false
 
-          # Modifier le groupId
-          sed -i 's|<groupId>org.openapitools</groupId>|<groupId>com.ganafaye</groupId>|' pom.xml
+          # Modifier uniquement le groupId principal du projet
+          sed -i '0,/<groupId>org.openapitools<\/groupId>/s//<groupId>com.ganafaye<\/groupId>/' pom.xml
 
-          # Modifier l'artifactId
-          sed -i 's|<artifactId>openapi-spring</artifactId>|<artifactId>api-etudiants-server</artifactId>|' pom.xml
+          # Modifier uniquement l'artifactId principal du projet
+          sed -i '0,/<artifactId>openapi-spring<\/artifactId>/s//<artifactId>api-etudiants-server<\/artifactId>/' pom.xml
 
           # Vérifier les coordonnées finales
           echo "Coordonnées Maven configurées :"
-          grep -E '<groupId>|<artifactId>|<version>' pom.xml | head -n 5
+          grep -A 5 '<modelVersion>' pom.xml
+
+          # Vérifier la dépendance Jackson
+          echo "Vérification de jackson-databind-nullable :"
+          grep -B 1 -A 2 'jackson-databind-nullable' pom.xml
 
       # 13. Construire et publier le package Maven
       - name: Construire et publier le package Maven
