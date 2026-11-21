@@ -107,11 +107,20 @@ jobs:
       - name: Personnaliser le package Maven
         working-directory: generated/java-server
         run: |
+          # Modifier la version Maven
           mvn -B versions:set \
-            -DgroupId=com.ganafaye \
-            -DartifactId=api-etudiants-server \
-            -Dversion=1.0.0 \
+            -DnewVersion=1.0.0 \
             -DgenerateBackupPoms=false
+
+          # Modifier le groupId
+          sed -i 's|<groupId>org.openapitools</groupId>|<groupId>com.ganafaye</groupId>|' pom.xml
+
+          # Modifier l'artifactId
+          sed -i 's|<artifactId>openapi-spring</artifactId>|<artifactId>api-etudiants-server</artifactId>|' pom.xml
+
+          # Vérifier les coordonnées finales
+          echo "Coordonnées Maven configurées :"
+          grep -E '<groupId>|<artifactId>|<version>' pom.xml | head -n 5
 
       # 13. Construire et publier le package Maven
       - name: Construire et publier le package Maven
