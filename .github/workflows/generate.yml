@@ -9,17 +9,22 @@ on:
       - main
   workflow_dispatch:
 
+# Version commune automatique des trois packages
+# Exemple : 1.1.25-build.1
+env:
+  PACKAGE_VERSION: 1.1.${{ github.run_number }}-build.${{ github.run_attempt }}
+
 jobs:
   generate-code:
     name: Validation, génération et publication des packages
     runs-on: ubuntu-latest
 
-    # Permissions nécessaires à GitHub Packages
     permissions:
       contents: read
       packages: write
 
     steps:
+
       # 1. Récupérer le dépôt
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
@@ -46,7 +51,12 @@ jobs:
       - name: Valider le contrat OpenAPI
         run: npx --yes @redocly/cli lint openapi.yaml
 
-      # 5. Générer le client TypeScript
+      # 5. Afficher la version automatique
+      - name: Déterminer la version des packages
+        run: |
+          echo "Version commune : ${{ env.PACKAGE_VERSION }}"
+
+      # 6. Générer le client TypeScript
       - name: Générer le client TypeScript
         run: |
           docker run --rm \
@@ -55,14 +65,14 @@ jobs:
             -i /local/openapi.yaml \
             -g typescript-fetch \
             -o /local/generated/typescript-client \
-            --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=1.0.1
+            --additional-properties=npmName=@ganafaye/api-etudiants-client,npmVersion=${{ env.PACKAGE_VERSION }}
 
-      # 6. Corriger les permissions des fichiers générés
+      # 7. Corriger les permissions TypeScript
       - name: Corriger les permissions TypeScript
         run: |
           sudo chown -R "$USER:$USER" generated/typescript-client
 
-      # 7. Personnaliser les métadonnées npm
+      # 8. Configurer les métadonnées npm
       - name: Configurer les métadonnées npm
         working-directory: generated/typescript-client
         run: |
@@ -70,14 +80,14 @@ jobs:
           npm pkg set "author=Gana Faye"
           npm pkg set "repository.url=https://github.com/ganafaye/api-etudiants.git"
 
-      # 8. Installer les dépendances et compiler le package npm
+      # 9. Installer les dépendances et compiler le package npm
       - name: Installer et compiler le package npm
         working-directory: generated/typescript-client
         run: |
           npm install --ignore-scripts
           npm run build
 
-      # 9. Générer le serveur Java Spring Boot
+      # 10. Générer le serveur Java Spring Boot
       - name: Générer le serveur Java
         run: |
           docker run --rm \
@@ -87,12 +97,24 @@ jobs:
             -g spring \
             -o /local/generated/java-server
 
-      # 10. Corriger les permissions des fichiers Java générés
+      # 11. Générer la bibliothèque Java réutilisable
+      - name: Générer la bibliothèque Java Models
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/local" \
+            openapitools/openapi-generator-cli generate \
+            -i /local/openapi.yaml \
+            -g spring \
+            -o /local/generated/java-models \
+            --additional-properties=interfaceOnly=true,modelPackage=com.ganafaye.api.etudiants.model,apiPackage=com.ganafaye.api.etudiants.api,useSpringBoot3=true
+
+      # 12. Corriger les permissions des fichiers Java
       - name: Corriger les permissions Java
         run: |
           sudo chown -R "$USER:$USER" generated/java-server
+          sudo chown -R "$USER:$USER" generated/java-models
 
-      # 11. Configurer Java et Maven
+      # 13. Configurer Java et Maven
       - name: Configurer Java
         uses: actions/setup-java@v4
         with:
@@ -103,44 +125,72 @@ jobs:
           server-password: GITHUB_TOKEN
           settings-path: ${{ github.workspace }}
 
-      # 12. Personnaliser les coordonnées Maven
-      - name: Personnaliser le package Maven
+      # 14. Personnaliser les coordonnées Maven du serveur
+      - name: Configurer le package Maven Server
         working-directory: generated/java-server
         run: |
-          # Modifier la version Maven
           mvn -B versions:set \
-            -DnewVersion=1.0.0 \
+            -DnewVersion=${{ env.PACKAGE_VERSION }} \
             -DgenerateBackupPoms=false
 
-          # Modifier uniquement le groupId principal du projet
           sed -i '0,/<groupId>org.openapitools<\/groupId>/s//<groupId>com.ganafaye<\/groupId>/' pom.xml
 
-          # Modifier uniquement l'artifactId principal du projet
           sed -i '0,/<artifactId>openapi-spring<\/artifactId>/s//<artifactId>api-etudiants-server<\/artifactId>/' pom.xml
 
-          # Vérifier les coordonnées finales
-          echo "Coordonnées Maven configurées :"
+          echo "Coordonnées Maven Server :"
           grep -A 5 '<modelVersion>' pom.xml
 
-          # Vérifier la dépendance Jackson
-          echo "Vérification de jackson-databind-nullable :"
-          grep -B 1 -A 2 'jackson-databind-nullable' pom.xml
+      # 15. Personnaliser les coordonnées Maven de la bibliothèque
+      - name: Configurer le package Maven Models
+        working-directory: generated/java-models
+        run: |
+          mvn -B versions:set \
+            -DnewVersion=${{ env.PACKAGE_VERSION }} \
+            -DgenerateBackupPoms=false
 
-      # 13. Construire et publier le package Maven
-      - name: Construire et publier le package Maven
+          sed -i '0,/<groupId>org.openapitools<\/groupId>/s//<groupId>com.ganafaye<\/groupId>/' pom.xml
+
+          sed -i '0,/<artifactId>openapi-spring<\/artifactId>/s//<artifactId>api-etudiants-models<\/artifactId>/' pom.xml
+
+          echo "Coordonnées Maven Models :"
+          grep -A 5 '<modelVersion>' pom.xml
+
+      # 16. Compiler et vérifier la bibliothèque Java
+      - name: Compiler et vérifier Java Models
+        working-directory: generated/java-models
+        run: |
+          mvn -B clean package \
+            -Dspring-boot.repackage.skip=true
+
+          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "*.original" | head -1)
+
+          if [ -z "$JAR_FILE" ]; then
+            echo "ERREUR : aucun JAR généré."
+            exit 1
+          fi
+
+          echo "JAR généré : $JAR_FILE"
+
+          if jar tf "$JAR_FILE" | grep -q '^BOOT-INF/'; then
+            echo "ERREUR : le JAR contient encore BOOT-INF."
+            exit 1
+          fi
+
+          echo "Bibliothèque Java classique détectée."
+
+          jar tf "$JAR_FILE" | grep '\.class$' | head -20
+
+      # 17. Vérifier les paramètres de publication
+      - name: Vérifier la configuration GitHub Packages
         if: github.event_name != 'pull_request'
-        working-directory: generated/java-server
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Vérifier la présence du fichier settings.xml
           if [ ! -f "${{ github.workspace }}/settings.xml" ]; then
             echo "ERREUR : fichier settings.xml introuvable."
             exit 1
           fi
 
-          # Vérifier la disponibilité du token
           if [ -z "$GITHUB_TOKEN" ]; then
             echo "ERREUR : GITHUB_TOKEN est absent."
             exit 1
@@ -149,22 +199,34 @@ jobs:
           echo "Configuration Maven trouvée."
           echo "Authentification GitHub disponible."
 
-          # Construire et publier le package Maven
+      # 18. Publier la bibliothèque Java Models
+      - name: Publier le package Maven Models
+        if: github.event_name != 'pull_request'
+        working-directory: generated/java-models
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B \
+            -s "${{ github.workspace }}/settings.xml" \
+            deploy \
+            -Dspring-boot.repackage.skip=true \
+            -DaltDeploymentRepository=github::https://maven.pkg.github.com/ganafaye/api-etudiants
+
+      # 19. Construire et publier le serveur Spring Boot
+      - name: Construire et publier le package Maven Server
+        if: github.event_name != 'pull_request'
+        working-directory: generated/java-server
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           mvn -B \
             -s "${{ github.workspace }}/settings.xml" \
             deploy \
             -DaltDeploymentRepository=github::https://maven.pkg.github.com/ganafaye/api-etudiants
 
-      # 14. Conserver les artefacts générés
-      - name: Conserver les artefacts générés
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-code
-          path: generated/
-          if-no-files-found: error
-          retention-days: 7
-
-      # 15. Publier le package npm sur GitHub Packages
+      # 20. Publier le package npm
       - name: Publier le package npm
         if: github.event_name != 'pull_request'
         working-directory: generated/typescript-client
@@ -172,3 +234,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm publish --registry=https://npm.pkg.github.com
+
+      # 21. Conserver les artefacts générés
+      - name: Conserver les artefacts générés
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-code
+          path: generated/
+          if-no-files-found: error
+          retention-days: 7
